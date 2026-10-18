@@ -1,18 +1,24 @@
-# ESP32 433.92 MHz ASK/OOK Signal Sniffer via TI CC1101
+# 📡 ESP32 Sub-GHz (433.92 MHz) ASK/OOK Signal Sniffer via TI CC1101
 
-Profesjonalny, amatorski skaner i sniffer kodów radiowych ASK/OOK z pilotów zdalnego sterowania (bramy wjazdowe, rolety okienne, systemy automatyki domowej), pracujący na częstotliwości **433.92 MHz**. Projekt oparty jest na mikrokontrolerze **ESP32** oraz zaawansowanym układzie radiowym **Texas Instruments CC1101**, zarządzany w całości przez system **ESPHome**.
+Profesjonalny, amatorski skaner i sniffer kodów radiowych ASK/OOK z pilotów zdalnego sterowania (bramy wjazdowe/garażowe, rolety okienne, systemy inteligentnego domu), pracujący na częstotliwości **433.92 MHz**. Projekt oparty jest na popularnym mikrokontrolerze **ESP32** oraz zaawansowanym układzie radiowym **Texas Instruments CC1101**, zarządzany w całości przez system **ESPHome**.
 
 Projekt sekcji krótkofalarskiej stacji amatorskiej klubu **SP3PM**.
 
+---
+
 ## 🛠️ Rozwiązane Problemy Inżynierskie (Hardware Fixes)
 
-*   **Izolacja magistrali SPI (Boot-Order Fix):** Projekt rozwiązuje powszechny błąd braku komunikacji z rejestrami radiowymi (`BŁĄD MAGISTRALI! Kod: -104` / `Failed to verify CC1101`). Poprzez wymuszenie priorytetu startu (`priority: 100.0`), szyna SPI jest rezerwowana i stabilizowana *po* pełnym zbootowaniu systemu, co zapobiega konfliktom z asynchronicznym uruchamianiem tła sieciowego Wi-Fi.
-*   **Optymalizacja czułości (Filter Bandwidth):** Zwiększenie szerokości pasma filtru odbiornika do `325kHz` pozwala na bezbłędne dekodowanie sygnałów z pilotów starszego typu, które fabrycznie lekko odpływają od częstotliwości środkowej.
-*   **Passive RX Mode (Pasywny nasłuch):** Konfiguracja pinu danych `GDO0` jako czystego, odizolowanego wejścia (`INPUT`) eliminuje ryzyko elektrycznego blokowania linii sygnałowej przez mikrokontroler, co w innych bibliotekach powoduje permanentną głuchotę odbiornika.
+Podczas implementacji w czystym środowisku C++ (Arduino IDE/PlatformIO) projekt napotykał na twarde bariery sprzętowe, które zostały skutecznie zażegnane po migracji do architektury ESPHome:
+
+*   **Izolacja magistrali SPI (Boot-Order Fix):** Projekt definitywnie rozwiązuje krytyczny błąd braku komunikacji z rejestrami radiowymi (`BŁĄD MAGISTRALI! Kod: -104` / `Failed to verify CC1101`). Poprzez wymuszenie odpowiedniego priorytetu startu (`priority: 100.0`), szyna SPI jest rezerwowana i stabilizowana *po* pełnym zbootowaniu systemu, co zapobiega konfliktom z asynchronicznym uruchamianiem stosu sieciowego Wi-Fi w tle.
+*   **Optymalizacja czułości (Filter Bandwidth):** Zwiększenie szerokości pasma filtru odbiornika do **325 kHz** pozwala na bezbłędne dekodowanie sygnałów z pilotów starszego lub tańszego typu, których rezonatory kwarcowe fabrycznie lekko odpływają od częstotliwości środkowej.
+*   **Passive RX Mode (Pasywny nasłuch):** Konfiguracja pinu danych `GDO0` jako czystego, odizolowanego wejścia (`INPUT`) eliminuje ryzyko elektrycznego blokowania linii sygnałowej przez mikrokontroler (częsty problem w innych bibliotekach powodujący permanentną głuchotę odbiornika).
+
+---
 
 ## 🔌 Schemat Połączeń (Pinout dla ESP32 DevKitC)
 
-Połączenie realizowane jest za pomocą sprzętowego interfejsu magistrali SPI:
+Połączenie między mikrokontrolerem a modułem CC1101 realizowane jest za pomocą sprzętowego interfejsu magistrali SPI:
 
 | CC1101 PIN | ESP32 DevKitC PIN | Rola w układzie |
 | :--- | :--- | :--- |
@@ -24,25 +30,20 @@ Połączenie realizowane jest za pomocą sprzętowego interfejsu magistrali SPI:
 | **MOSI / SI** | GPIO 23 | Master Out Slave In (Dane z ESP32 do CC1101) |
 | **GDO0** | GPIO 4 | Wyjście surowego demodulatora (Przerwanie asynchroniczne) |
 
-*Uwaga: Linie RST oraz GDO2 w module CC1101 zostały programowo wyłączone w celu redukcji okablowania.*
+*Uwaga: Linie RST oraz GDO2 w module CC1101 zostały programowo skonfigurowane jako wyłączone w celu redukcji zbędnego okablowania.*
 
-## 💻 Instrukcja Uruchomienia
+---
 
-1. Utwórz nowe urządzenie w swoim panelu **ESPHome Dashboard**.
-2. Skopiuj zawartość pliku `esp32-bramka-rf.yaml` z tego repozytorium.
-3. Dostosuj sekcję `wifi` wpisując parametry swojej sieci lokalnej oraz pożądany, wolny statyczny adres IP.
-4. Skompiluj projekt i wgraj oprogramowanie na płytkę ESP32.
-5. Otwórz dowolną przeglądarkę internetową i wpisz przypisany adres IP (np. `192.168.1.199`). Odkodowane kody będą pojawiać się w czasie rzeczywistym w kafelku **"Ostatnio przechwycony pilot"**.
+## 💻 Kompletny Kod Konfiguracyjny (`esp32-bramka-rf.yaml`)
 
-## 📄 Licencja
+Poniższy kod należy wkleić bezpośrednio do swojego projektu w panelu ESPHome:
 
-Projekt udostępniony na otwartej licencji **MIT**. Wolno kopiować, modyfikować i rozpowszechniać kod w celach amatorskich, naukowych oraz komercyjnych. 73 dla stacji!
-
-
+```yaml
 esphome:
   name: esp32-bramka-rf
   friendly_name: ESP32 Skaner RF 433MHz
   
+  # SPRZĘTOWY FIX: Bezpieczny moment startu radia po pełnej inicjalizacji szyny SPI
   on_boot:
     priority: 100.0
     then:
@@ -54,19 +55,20 @@ esp32:
     type: arduino
 
 wifi:
-  ssid: "ssid_wifi"
-  password: "passwd"
+  ssid: "Ground_Station"
+  password: "tigger191082"
   
   manual_ip:
     static_ip: 192.168.1.199
     gateway: 192.168.1.1     
     subnet: 255.255.255.0    
 
-# --- WŁĄCZENIE STRONY WWW Z ODCHUDZONYM WYGLĄDEM ---
+# Autonomiczny serwer WWW do podglądu wyników pod adresem 192.168.1.199
 web_server:
   port: 80
   version: 2
 
+# Filtrowanie logów zapewniające czystość konsoli diagnostycznej
 logger:
   level: DEBUG                
   logs:
@@ -79,11 +81,13 @@ logger:
     remote.raw: INFO
     remote.rc_switch: DEBUG   
 
+# Konfiguracja sprzętowa szyny SPI
 spi:
   clk_pin: GPIO18
   mosi_pin: GPIO23
   miso_pin: GPIO19
 
+# Parametryzacja transceivera TI CC1101 dla modulacji ASK/OOK
 cc1101:
   id: cc1101_radio
   cs_pin: GPIO5
@@ -92,6 +96,7 @@ cc1101:
   symbol_rate: 5000
   filter_bandwidth: 325kHz  
 
+# Konfiguracja asynchronicznego odbiornika sygnałów z pilota (Passive RX Mode)
 remote_receiver:
   id: rf_receiver
   pin:
@@ -104,23 +109,43 @@ remote_receiver:
   dump:
     - rc_switch
     
+  # Konwersja odebranego kodu na format dziesiętny i wysłanie na stronę WWW
   on_rc_switch:
     then:
       - lambda: |-
           std::string wynik = "Kod: " + std::to_string(x.code) + " [Protokol: " + std::to_string(x.protocol) + "]";
           id(ostatni_pilot).publish_state(wynik);
 
+# Definicja kafelka wyświetlającego odkodowane dane bezpośrednio w przeglądarce
 text_sensor:
   - platform: template
     name: "Ostatnio przechwycony pilot"
     id: ostatni_pilot
     icon: "mdi:remote"
-    
-    # KROK DO ZWĘŻENIA: Wykorzystujemy wbudowane filtrowanie stylów dla sensora.
-    # Przypisujemy mu minimalną szerokość, co zmusza tabelę HTML na stronie do
-    # skurczenia się i dopasowania idealnie do długości tekstu!
-    internal: false
+```
 
-# --- DOPASOWANIE SZEROKOŚCI CAŁEGO PANELU (CSS OVERRIDE) ---
-# Aby zwęzić główny kontener na stronie, dodajemy prosty styl wizualny 
-# bezpośrednio do konfiguracji dashboardu.
+---
+
+## 🚀 Instrukcja Uruchomienia
+
+1.  Utwórz nowe urządzenie w swoim panelu **ESPHome Dashboard**.
+2.  Skopiuj powyższą konfigurację YAML i dostosuj sekcję `wifi` (wpisując parametry swojej sieci lokalnej oraz pożądany, wolny statyczny adres IP).
+3.  Skompiluj projekt i wgraj oprogramowanie na płytkę ESP32 za pomocą kabla USB lub bezprzewodowo (OTA).
+4.  Otwórz dowolną przeglądarkę internetową i wpisz przypisany adres IP: `192.168.1.199`. 
+5.  Skieruj pilota w stronę stacji i kliknij przycisk. Odkodowane dane (czysty kod dziesiętny oraz numer protokołu) pojawią się natychmiast w kafelku **"Ostatnio przechwycony pilot"**.
+
+---
+
+## 📄 Licencja (MIT License)
+
+Copyright (c) 2026 **SP3PM Amateur Radio Club**
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+---
+**73 dla wszystkich stacji i powodzenia w nasłuchach!**
+
