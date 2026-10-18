@@ -55,8 +55,8 @@ esp32:
     type: arduino
 
 wifi:
-  ssid: "Ground_Station"
-  password: "tigger191082"
+  ssid: "ssid_wifi"
+  password: "passwd"
   
   manual_ip:
     static_ip: 192.168.1.199
